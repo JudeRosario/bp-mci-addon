@@ -8,49 +8,63 @@
  */
 
 
-// When a user is updated
-add_action( 'xprofile_updated_profile', 'integrate_profile_fields' );
+if(!class_exists('BuddyPress_MailChimp_Integration')):
+	class BuddyPress_MailChimp_Integration {
 
+		function __construct () { }
 
-// When a user signs up or is activated 
-add_action( 'bp_core_signup_user',      'integrate_profile_fields' );
-add_action( 'bp_core_activated_user',   'integrate_profile_fields' );
+	// The starting point to this addon/class
+		public static function serve () {
+			$me = new self;
+			$me->add_hooks();
+		}
 
+	// Hooks into psts_setting_checkout_url and fixes the url
+		private function add_hooks () {
+			// When a user is updated
+				add_action( 'xprofile_updated_profile', array($this,'integrate_profile_fields') );
 
+			// When a user signs up or is activated 
+				add_action( 'bp_core_signup_user',      array($this,'integrate_profile_fields') );
+				add_action( 'bp_core_activated_user',   array($this,'integrate_profile_fields') );
+		}
 
+	// Code to check if the record exists, update otherwise create a new entry 
 
-function integrate_profile_fields ($user_id) {
-
-require_once( MAILCHIMP_PLUGIN_DIR.'mailchimp-sync.php' );
-require_once( MAILCHIMP_PLUGIN_DIR.'helpers.php' );
-
-		$mailchimp_mailing_list = get_site_option('mailchimp_mailing_list');
-		$mailchimp_auto_opt_in = get_site_option('mailchimp_auto_opt_in');
-
-		// Gets Name from sign up form
-		if(isset($_POST['field_1']))
-			$name = explode(" ", $_POST['field_1']) ;
-
-		// Gets Name from xProfile Field
-		if(is_null($name))
-			$name = explode(" ", xprofile_get_field_data( 1, $user_id)) ;
-
-		$autopt = $mailchimp_auto_opt_in == 'yes' ? true : false;
+		function integrate_profile_fields( $setting, $default ) {
+			
+			// Get profile data from BuddyPress
+			$name = explode(" ", xprofile_get_field_data( 1 , $user_id )) ;
+			$user = get_userdata($user_id);
 		
-		$user = get_userdata($user_id);
 		
-		$merge_vars = array( 'FNAME' => $name[0]
-						   , 'LNAME' => $name[1]." ".$name[2]." ".$name[3]
-						   );
-		
-		$merge_groups = mailchimp_get_interest_groups();
-		
-		if ( ! empty( $merge_groups ) )
-			$merge_groups = array( 'groupings' => $merge_groups );
+			// Get groups and Auto optin settings from MailChimp
+			$merge_groups = mailchimp_get_interest_groups();
+			$autopt = $mailchimp_auto_opt_in == 'yes' ? true : false;
 
-		$merge_vars = array_merge( $merge_vars, $merge_groups );
+			
+			// Add name and groups to final array
+			$merge_vars = array(  'FNAME' => $name[0] ,
+						   	 	  'LNAME' => $name[1]." ".$name[2]." ".$name[3] );	
 
-		mailchimp_subscribe_user( $user->user_email, $mailchimp_mailing_list, $autopt, $merge_vars, true );
-}
+			if ( ! empty( $merge_groups ) )
+				$merge_groups = array( 'groupings' => $merge_groups );
+			$merge_vars = array_merge( $merge_vars, $merge_groups );
 
+			// Make an API call
+			mailchimp_subscribe_user( $user->user_email, $mailchimp_mailing_list, $autopt, $merge_vars, true );
+
+		return ; 
+		}
+
+	}
+endif;
+
+// Check if the base plugin is installed before activating the addon 
+add_action('plugins_loaded', 'init_bp_mci') ;
+
+	function init_bp_mci () {
+		if (class_exists('WPMUDEV_MailChimp_Sync'))
+			BuddyPress_MailChimp_Integration::serve() ; 
+	}
 ?>

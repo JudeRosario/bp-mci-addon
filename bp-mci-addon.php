@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name: MailChimp + BuddyPress Profile Integration
- * Version: 1.0.0
+ * Version: 1.0.1
  * Description: This code snippet pulls data from BuddyPress profiles and bundles it in a call to the MailChimp 2.0 API 
  * Author: Jude (WPMU DEV)
  * Author URI: http://premium.wpmudev.org/
